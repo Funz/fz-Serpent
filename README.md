@@ -18,18 +18,16 @@ This plugin enables you to:
 
 ### Supported Output Variables
 
-The plugin automatically extracts these output variables from Serpent result files (`*_res.m`):
+The plugin automatically extracts these output variables from Serpent result files (`*_res.m`). All outputs are formatted as JSON arrays/matrices for easy parsing.
 
 | Variable | Description |
 |----------|-------------|
-| `absKeff` | Absorption-based effective multiplication factor |
-| `absKeff_err` | Relative error of absKeff |
-| `anaKeff` | Analog k-effective estimate |
-| `anaKeff_err` | Relative error of anaKeff |
-| `colKeff` | Collision-based k-effective |
-| `colKeff_err` | Relative error of colKeff |
-| `impKeff` | Implicit k-effective estimate |
-| `impKeff_err` | Relative error of impKeff |
+| `absKeff` | Absorption-based k-effective [value, rel_error] per burnup step |
+| `anaKeff` | Analog k-effective estimate [value, rel_error, ...] per burnup step |
+| `colKeff` | Collision-based k-effective [value, rel_error] per burnup step |
+| `impKeff` | Implicit k-effective estimate [value, rel_error] per burnup step |
+| `burnup` | Burnup values [MWd/kgU, ...] per burnup step (empty for non-depletion) |
+| `burnDays` | Burnup time [days] per burnup step (empty for non-depletion) |
 
 ## Requirements
 

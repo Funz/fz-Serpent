@@ -151,6 +151,7 @@ def test_serpent_results_parsing():
     
     try:
         import serpentTools
+        import json
         print("  serpentTools module found ✓")
         
         res_file = "examples/Serpent/input_res.m"
@@ -172,6 +173,26 @@ def test_serpent_results_parsing():
         
         print("✓")
         print(f"  Parsed keff = {keff}")
+        
+        # Test JSON output format
+        print("  Testing JSON output format...", end=" ")
+        absKeff_json = json.dumps(res.resdata['absKeff'].tolist())
+        assert absKeff_json.startswith('['), "absKeff should be JSON array"
+        parsed = json.loads(absKeff_json)
+        assert isinstance(parsed, list), "absKeff JSON should parse to list"
+        print("✓")
+        
+        # Test burnup/burnDays (may be empty for non-depletion cases)
+        print("  Testing burnup/burnDays output...", end=" ")
+        burnup_data = res.resdata.get('burnup', [])
+        burnup_json = json.dumps(burnup_data.tolist() if hasattr(burnup_data, 'tolist') else [])
+        assert burnup_json.startswith('['), "burnup should be JSON array"
+        
+        burnDays_data = res.resdata.get('burnDays', [])
+        burnDays_json = json.dumps(burnDays_data.tolist() if hasattr(burnDays_data, 'tolist') else [])
+        assert burnDays_json.startswith('['), "burnDays should be JSON array"
+        print("✓")
+        
         print("  serpentTools parsing successful!\n")
         
     except ImportError:
