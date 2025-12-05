@@ -1,0 +1,6 @@
+{
+    "uri": "sh://",
+    "models": {
+        "Serpent": "bash .fz/calculators/Serpent.sh"
+    }
+}

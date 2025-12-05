@@ -1,0 +1,15 @@
+{
+    "id": "Serpent",
+    "varprefix": "$",
+    "formulaprefix": "@",
+    "delim": "{}",
+    "commentline": "%",
+    "output": {
+        "absKeff": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata['absKeff'].tolist()))\" 2>/dev/null || echo '[]'",
+        "anaKeff": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata['anaKeff'].tolist()))\" 2>/dev/null || echo '[]'",
+        "colKeff": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata['colKeff'].tolist()))\" 2>/dev/null || echo '[]'",
+        "impKeff": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata['impKeff'].tolist()))\" 2>/dev/null || echo '[]'",
+        "burnup": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata.get('burnup',[]).tolist() if hasattr(res.resdata.get('burnup',[]),'tolist') else []))\" 2>/dev/null || echo '[]'",
+        "burnDays": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata.get('burnDays',[]).tolist() if hasattr(res.resdata.get('burnDays',[]),'tolist') else []))\" 2>/dev/null || echo '[]'"
+    }
+}

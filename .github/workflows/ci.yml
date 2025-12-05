@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test Plugin Structure
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        pip install git+https://github.com/Funz/fz.git
+        pip install serpentTools
+     
+    - name: Validate JSON files
+      run: |
+        echo "Validating model files..."
+        for f in .fz/models/*.json; do
+          echo "  Checking $f"
+          python -m json.tool "$f" > /dev/null
+        done
+        echo "Validating calculator config files..."
+        for f in .fz/calculators/*.json; do
+          echo "  Checking $f"
+          python -m json.tool "$f" > /dev/null
+        done
+    
+    - name: Check shell script syntax
+      run: |
+        echo "Checking shell scripts..."
+        for f in .fz/calculators/*.sh; do
+          echo "  Checking $f"
+          bash -n "$f"
+        done
+    
+    - name: Test fzi (parse variables)
+      run: |
+        python -c "
+        import fz
+        variables = fz.fzi('examples/Serpent/input.inp', 'Serpent')
+        print(f'Variables found: {list(variables.keys())}')
+        assert 'enrichment' in variables, 'Variable enrichment not found'
+        print('✓ fzi test passed')
+        "
+    
+    - name: Test fzc (compile input)
+      run: |
+        python -c "
+        import fz
+        import tempfile
+        import os
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fz.fzc('examples/Serpent/input.inp', {'enrichment': 0.04}, 'Serpent', output_dir=tmpdir)
+            compiled = os.path.join(tmpdir, 'enrichment=0.04', 'input.inp')
+            assert os.path.exists(compiled), 'Compiled file not created'
+            with open(compiled) as f:
+                content = f.read()
+                assert '0.04' in content, 'Variable not substituted'
+        print('✓ fzc test passed')
+        "
+
+    - name: Test serpentTools parsing
+      run: |
+        python -c "
+        import serpentTools
+        import json
+        res = serpentTools.read('examples/Serpent/input_res.m')
+        # Check k-eff is available
+        assert 'absKeff' in res.resdata, 'absKeff not found'
+        # Check JSON output format
+        keff_json = json.dumps(res.resdata['absKeff'].tolist())
+        assert keff_json.startswith('['), 'absKeff should be JSON array'
+        print('✓ serpentTools parsing test passed')
+        "
+
+    - name: Run plugin tests
+      run: |
+        python tests/test_plugin.py
+    
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Check shell scripts are executable
+      run: |
+        for f in .fz/calculators/*.sh; do
+          if [ ! -x "$f" ]; then
+            echo "Error: $f is not executable"
+            exit 1
+          fi
+        done
+
+  docs:
+    name: Check Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Check required documentation files
+      run: |
+        for f in README.md LICENSE; do
+          if [ ! -f "$f" ]; then
+            echo "Error: Missing $f"
+            exit 1
+          fi
+          echo "✓ $f exists"
+        done
+    
+    - name: Check example files
+      run: |
+        if [ ! -f "examples/Serpent/input.inp" ]; then
+          echo "Error: Missing example input file"
+          exit 1
+        fi
+        if [ ! -f "examples/Serpent/input_res.m" ]; then
+          echo "Error: Missing example result file"
+          exit 1
+        fi
+        echo "✓ Example files present"
