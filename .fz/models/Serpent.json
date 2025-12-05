@@ -1,0 +1,17 @@
+{
+    "id": "Serpent",
+    "varprefix": "$",
+    "formulaprefix": "@",
+    "delim": "{}",
+    "commentline": "%",
+    "output": {
+        "absKeff": "python3 -c \"import serpentTools,glob; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); d=res.resdata['absKeff']; print(d[0] if d.ndim==1 else d[0,0])\" 2>/dev/null || echo ''",
+        "absKeff_err": "python3 -c \"import serpentTools,glob; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); d=res.resdata['absKeff']; print(d[1] if d.ndim==1 else d[0,1])\" 2>/dev/null || echo ''",
+        "anaKeff": "python3 -c \"import serpentTools,glob; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); d=res.resdata['anaKeff']; print(d[0] if d.ndim==1 else d[0,0])\" 2>/dev/null || echo ''",
+        "anaKeff_err": "python3 -c \"import serpentTools,glob; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); d=res.resdata['anaKeff']; print(d[1] if d.ndim==1 else d[0,1])\" 2>/dev/null || echo ''",
+        "colKeff": "python3 -c \"import serpentTools,glob; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); d=res.resdata['colKeff']; print(d[0] if d.ndim==1 else d[0,0])\" 2>/dev/null || echo ''",
+        "colKeff_err": "python3 -c \"import serpentTools,glob; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); d=res.resdata['colKeff']; print(d[1] if d.ndim==1 else d[0,1])\" 2>/dev/null || echo ''",
+        "impKeff": "python3 -c \"import serpentTools,glob; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); d=res.resdata['impKeff']; print(d[0] if d.ndim==1 else d[0,0])\" 2>/dev/null || echo ''",
+        "impKeff_err": "python3 -c \"import serpentTools,glob; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); d=res.resdata['impKeff']; print(d[1] if d.ndim==1 else d[0,1])\" 2>/dev/null || echo ''"
+    }
+}

@@ -1,0 +1,41 @@
+# Results and temporary files
+results/
+*.out
+*.msg
+*.html
+PID
+
+# Serpent output files (except examples)
+*_det*.m
+*_dep*.m
+*_bumat*.m
+*_depmtx*.m
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv
+*.egg-info/
+.eggs/
+
+# fz temporary files
+.fz/tmp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Serpent execution files
+serpent.out

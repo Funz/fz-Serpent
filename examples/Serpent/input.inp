@@ -1,0 +1,97 @@
+% ============================================================
+% Serpent 2 Input File: UOX Fuel Pin Cell
+% ============================================================
+%
+% This is a simple 2D fuel pin cell model for UOX (Uranium Oxide) fuel
+% Variables are defined using ${variable_name} syntax for fz framework
+%
+% Reference: Based on Serpent Tutorial examples
+% ============================================================
+
+% --- Simulation title ---
+set title "UOX Fuel Pin Cell - fz Parametric Study"
+
+% --- Cross section library (adjust path as needed) ---
+% set acelib "/path/to/serpent/xsdata/sss_endfb7u.xsdata"
+
+% ============================================================
+% MATERIAL DEFINITIONS
+% ============================================================
+
+% --- UOX fuel material ---
+% Enrichment is parameterized for sensitivity studies
+% Default enrichment ~4% U-235
+mat fuel -10.5 tmp 900
+92235.09c -${enrichment}
+92238.09c -${u238_fraction}
+8016.09c  -0.1185
+
+% --- Zircaloy cladding ---
+mat clad -6.56 tmp 600
+40090.06c -0.5145
+40091.06c -0.1122
+40092.06c -0.1715
+40094.06c -0.1738
+40096.06c -0.0280
+
+% --- Water moderator/coolant ---
+mat water -${water_density} moder lwtr 1001 tmp ${water_temp}
+1001.06c  2
+8016.06c  1
+
+% --- Thermal scattering library for light water ---
+therm lwtr lwe7.00t
+
+% ============================================================
+% GEOMETRY DEFINITIONS
+% ============================================================
+
+% --- Surfaces ---
+% Fuel pellet outer radius
+surf 1 cyl 0.0 0.0 ${fuel_radius}
+
+% Cladding inner radius (gap is neglected)
+surf 2 cyl 0.0 0.0 ${clad_inner_radius}
+
+% Cladding outer radius
+surf 3 cyl 0.0 0.0 ${clad_outer_radius}
+
+% Pin cell boundary (square)
+surf 4 sqc 0.0 0.0 ${pitch_half}
+
+% --- Cells ---
+% Fuel region
+cell 1 0 fuel    -1
+
+% Gap (void) between fuel and cladding
+cell 2 0 void     1 -2
+
+% Cladding
+cell 3 0 clad     2 -3
+
+% Moderator/coolant
+cell 4 0 water    3 -4
+
+% Outside boundary (void)
+cell 5 0 outside  4
+
+% ============================================================
+% SIMULATION SETTINGS
+% ============================================================
+
+% --- Boundary conditions (reflective) ---
+set bc 2
+
+% --- Neutron population and criticality cycles ---
+% pop <neutrons_per_cycle> <active_cycles> <inactive_cycles>
+set pop ${neutrons_per_cycle} ${active_cycles} ${inactive_cycles}
+
+% --- Seed for random number generator (for reproducibility) ---
+set seed ${seed}
+
+% --- Output options ---
+set pcc 0
+
+% ============================================================
+% END OF INPUT
+% ============================================================
