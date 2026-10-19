@@ -200,6 +200,94 @@ def test_serpent_results_parsing():
         print("  (Install with: pip install serpentTools)\n")
 
 
+def run_output_commands(directory):
+    """Run the output commands of the model in `directory` (as fz does) and return {name: parsed JSON}."""
+    import subprocess
+    with open(".fz/models/Serpent.json") as f:
+        outputs = json.load(f)["output"]
+    results = {}
+    for name, command in outputs.items():
+        r = subprocess.run(command, shell=True, cwd=directory, capture_output=True, text=True)
+        assert r.returncode == 0, f"output command {name} failed: {r.stderr}"
+        results[name] = json.loads(r.stdout)
+    return results
+
+
+def test_model_output_commands():
+    """Test the output commands of the model on result files (standard library only, no serpentTools)."""
+    print("Testing model output commands...")
+    import shutil
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print("  Single result block (criticality run)...", end=" ")
+        shutil.copy("examples/Serpent/input_res.m", os.path.join(tmpdir, "input.inp_res.m"))
+        out = run_output_commands(tmpdir)
+        assert out["absKeff"] == [1.15295, 0.00094], f"absKeff = {out['absKeff']}"
+        assert out["anaKeff"][:2] == [1.15583, 0.00176] and len(out["anaKeff"]) == 6, f"anaKeff = {out['anaKeff']}"
+        assert out["impKeff"] == [1.15295, 0.00094] and out["colKeff"] == [1.15307, 0.0017]
+        assert out["burnup"] == [] and out["burnDays"] == [], "burnup / burnDays must be empty without depletion"
+        print("✓")
+
+        print("  Several result blocks (one per burnup step)...", end=" ")
+        text = open("examples/Serpent/input_res.m").read()
+        with open(os.path.join(tmpdir, "input.inp_res.m"), "w") as f:
+            f.write(text + text.replace("1.15295E+00", "1.10000E+00"))
+        out = run_output_commands(tmpdir)
+        assert out["absKeff"] == [[1.15295, 0.00094], [1.1, 0.00094]], f"absKeff = {out['absKeff']}"
+        print("✓")
+
+        print("  Missing result file...", end=" ")
+        os.remove(os.path.join(tmpdir, "input.inp_res.m"))
+        out = run_output_commands(tmpdir)
+        assert all(v == [] for v in out.values()), f"expected empty outputs, got {out}"
+        print("✓")
+
+    print("  Model output commands OK!\n")
+
+
+def test_calculator_errors():
+    """Test that the calculator script reports Serpent failures (exit code and stderr) and finds SERPENT_EXE."""
+    print("Testing calculator script error handling (fake Serpent executables)...")
+    import subprocess
+
+    script = os.path.abspath(".fz/calculators/Serpent.sh")
+    fakes = {
+        # Serpent 2 prints input errors on stdout and exits with 255
+        "input_error": 'echo "Input error in parameter \\"therm\\" on line 43 in file \\"$1\\":"\n'
+                       'echo; echo "S(a,b) data lwe7.00t not found in libraries"; exit 255\n',
+        # a crash without a message and without result file, but exit code 0
+        "no_result": 'echo "Transport cycle aborted"; exit 0\n',
+        "ok": 'echo "Transport cycle completed in 1.0 seconds."; echo "ABS_KEFF (idx, [1: 2]) = [ 1.0 0.001 ];" > "$1_res.m"\n',
+    }
+    with tempfile.TemporaryDirectory() as tmpdir:
+        open(os.path.join(tmpdir, "input.inp"), "w").write("% test\n")
+        for case, body in fakes.items():
+            exe = os.path.join(tmpdir, f"sss2_{case}")
+            with open(exe, "w") as f:
+                f.write("#!/bin/bash\n" + body)
+            os.chmod(exe, 0o755)
+            print(f"  {case}...", end=" ")
+            r = subprocess.run(["bash", script, "input.inp"], cwd=tmpdir, capture_output=True, text=True,
+                               env=dict(os.environ, SERPENT_EXE=exe))
+            if case == "ok":
+                assert r.returncode == 0, f"expected success, got {r.returncode}: {r.stderr}"
+            else:
+                assert r.returncode != 0, f"{case}: failure not reported (exit code 0)"
+                assert "Serpent failed" in r.stderr, f"{case}: no error message on stderr: {r.stderr!r}"
+            if case == "input_error":
+                assert "lwe7.00t not found" in r.stderr, f"Serpent message missing from stderr: {r.stderr!r}"
+            assert not os.path.exists(os.path.join(tmpdir, "PID")), "PID file left behind"
+            print("✓")
+
+        print("  executable not found...", end=" ")
+        r = subprocess.run(["bash", script, "input.inp"], cwd=tmpdir, capture_output=True, text=True,
+                           env=dict(os.environ, SERPENT_EXE=os.path.join(tmpdir, "no_such_sss2")))
+        assert r.returncode == 127 and "SERPENT_EXE" in r.stderr, f"got {r.returncode}: {r.stderr!r}"
+        print("✓")
+
+    print("  Calculator error handling OK!\n")
+
+
 def test_with_fz():
     """Test integration with fz framework (if available)."""
     print("Testing fz framework integration...")
@@ -288,6 +376,8 @@ def main():
         test_example_files()
         test_serpent_input_syntax()
         test_serpent_results_parsing()
+        test_model_output_commands()
+        test_calculator_errors()
         test_with_fz()
         
         print("=" * 70)
