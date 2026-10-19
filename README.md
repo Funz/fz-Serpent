@@ -1,206 +1,131 @@
 # fz-Serpent
 
-A [Funz](https://github.com/Funz/fz) plugin for running parametric studies with the [Serpent](https://serpent.vtt.fi/) Monte Carlo reactor physics code.
+[fz](https://github.com/Funz/fz) wrapper for the [Serpent 2](https://serpent.vtt.fi/docs/)
+continuous-energy Monte Carlo reactor physics code: parameterize a Serpent input, run
+parametric studies or designs of experiments locally, over SSH or on SLURM, and get
+k-eff (and its statistical error), β-eff, burnup... as DataFrame columns.
 
-## Overview
+## Quickstart
 
-This plugin enables you to:
-- Define input parameters in Serpent input files using `${variable}` syntax
-- Run parametric sweeps and sensitivity analyses
-- Automatically extract key results (k-effective, etc.) using [serpentTools](https://serpent-tools.readthedocs.io/)
-
-## Features
-
-### Input Syntax
-- **Variable syntax**: `${variable_name}` (e.g., `${enrichment}`)
-- **Formula syntax**: `@{formula}` (e.g., `@{1-enrichment}`)
-- **Comment character**: `%` (Serpent's native comment character)
-
-### Supported Output Variables
-
-The plugin automatically extracts these output variables from Serpent result files (`*_res.m`). All outputs are formatted as JSON arrays/matrices for easy parsing.
-
-| Variable | Description |
-|----------|-------------|
-| `absKeff` | Absorption-based k-effective [value, rel_error] per burnup step |
-| `anaKeff` | Analog k-effective estimate [value, rel_error, ...] per burnup step |
-| `colKeff` | Collision-based k-effective [value, rel_error] per burnup step |
-| `impKeff` | Implicit k-effective estimate [value, rel_error] per burnup step |
-| `burnup` | Burnup values [MWd/kgU, ...] per burnup step (empty for non-depletion) |
-| `burnDays` | Burnup time [days] per burnup step (empty for non-depletion) |
-
-## Requirements
-
-- [Funz/fz](https://github.com/Funz/fz) framework
-- [Serpent 2](https://serpent.vtt.fi/) Monte Carlo code (for actual calculations)
-- [serpentTools](https://serpent-tools.readthedocs.io/) Python package (for result parsing)
-
-## Installation
-
-1. Install the fz framework:
 ```bash
-pip install git+https://github.com/Funz/fz.git
+pip install "funz-fz>=1.2"
+fz install model Serpent          # into ./.fz/  (add --global for ~/.fz/)
 ```
-
-2. Install serpentTools for result parsing:
-```bash
-pip install serpentTools
-```
-
-3. Clone this repository:
-```bash
-git clone https://github.com/Funz/fz-Serpent.git
-cd fz-Serpent
-```
-
-## Usage
-
-### With fz Python API
 
 ```python
 import fz
 
-# Example: Run parametric study varying fuel enrichment
 results = fz.fzr(
-    input_path="examples/Serpent/input.inp",
-    input_variables={
-        "enrichment": [0.03, 0.04, 0.05],
-        "u238_fraction": [0.8515, 0.8415, 0.8315],
-        "water_density": [0.72],
-        "water_temp": [600],
-        "fuel_radius": [0.41],
-        "clad_inner_radius": [0.42],
-        "clad_outer_radius": [0.475],
-        "pitch_half": [0.63],
-        "neutrons_per_cycle": [50000],
-        "active_cycles": [200],
-        "inactive_cycles": [20],
-        "seed": [12345]
-    },
-    model="Serpent",
-    calculators="localhost_Serpent",
-    results_dir="my_results"
+    "input.inp",                                  # e.g. examples/Serpent/input.inp
+    {"enrichment": [0.03, 0.04, 0.05]},           # other variables keep their defaults
+    model="Serpent",                              # calculator localhost_Serpent is found automatically
 )
-
-print(results[['enrichment', 'absKeff', 'absKeff_err']])
+print(results[["enrichment", "absKeff", "absKeff_err"]])
 ```
-
-### Directory Structure
-
-```
-fz-Serpent/
-├── .fz/
-│   ├── models/
-│   │   └── Serpent.json        # Model configuration
-│   └── calculators/
-│       ├── Serpent.sh          # Calculator script
-│       └── localhost_Serpent.json
-├── examples/
-│   └── Serpent/
-│       ├── input.inp           # Example Serpent input file
-│       └── input_res.m         # Example result file (for testing)
-├── tests/
-│   └── test_plugin.py          # Test suite
-├── README.md
-├── LICENSE
-└── .gitignore
-```
-
-## Example Input File
-
-```serpent
-% UOX Fuel Pin Cell - fz Parametric Study
-% Variables are defined using ${variable_name} syntax
-
-% --- UOX fuel material ---
-mat fuel -10.5 tmp 900
-92235.09c -${enrichment}
-92238.09c -${u238_fraction}
-8016.09c  -0.1185
-
-% --- Water moderator/coolant ---
-mat water -${water_density} moder lwtr 1001 tmp ${water_temp}
-1001.06c  2
-8016.06c  1
-
-% --- Geometry ---
-surf 1 cyl 0.0 0.0 ${fuel_radius}
-surf 2 cyl 0.0 0.0 ${clad_inner_radius}
-surf 3 cyl 0.0 0.0 ${clad_outer_radius}
-surf 4 sqc 0.0 0.0 ${pitch_half}
-
-% --- Run settings ---
-set pop ${neutrons_per_cycle} ${active_cycles} ${inactive_cycles}
-set seed ${seed}
-```
-
-## Result Parsing
-
-This plugin uses [serpentTools](https://serpent-tools.readthedocs.io/) to parse Serpent output files. The `*_res.m` files contain all criticality results.
-
-Example of manually reading results:
-
-```python
-import serpentTools
-
-# Read Serpent result file
-res = serpentTools.read('input_res.m')
-
-# Access k-effective values
-keff = res.resdata['absKeff'][0, 0]      # value
-keff_err = res.resdata['absKeff'][0, 1]  # relative error
-
-print(f"k-eff = {keff:.5f} ± {keff * keff_err:.5f}")
-```
-
-## Configuring Serpent Path
-
-The calculator script looks for Serpent in the following locations:
-1. `sss2` command in PATH
-2. `serpent` command in PATH
-3. `/opt/serpent/bin/sss2`
-4. `$HOME/serpent/bin/sss2`
-
-To use a custom Serpent installation, modify `.fz/calculators/Serpent.sh`.
-
-## Remote Execution
-
-To run calculations on a remote server with Serpent installed:
-
-```python
-results = fz.fzr(
-    input_path="input.inp",
-    input_variables={"enrichment": [0.03, 0.04, 0.05]},
-    model="Serpent",
-    calculators="ssh://user@hpc-server.edu/bash /path/to/calculators/Serpent.sh",
-    results_dir="remote_results"
-)
-```
-
-## Running Tests
 
 ```bash
-# Install test dependencies
-pip install serpentTools
+fzr input.inp --model Serpent -v '{"enrichment": [0.03, 0.04, 0.05]}' --format table
+```
 
-# Run tests
-python tests/test_plugin.py
+## Requirements
+
+- fz ≥ 1.2 (`pip install funz-fz`) — output parsing uses fz's built-in `python://`
+  extraction, no other Python package is needed (serpentTools is **not** required).
+- Serpent 2 (licensed by VTT through the NEA Data Bank / RSICC) with its nuclear data:
+  either declared in the input (`set acelib`, `set declib`, `set nfylib`) or through the
+  environment variables Serpent reads itself (`SERPENT_DATA`, `SERPENT_ACELIB`,
+  `SERPENT_DECLIB`, `SERPENT_NFYLIB`).
+
+## Input syntax
+
+| Element | Syntax | Example |
+|---|---|---|
+| Variable | `${name}` or `${name~default}` | `92235.09c -${enrichment~0.04}` |
+| Formula (Python) | `@{expression}` | `92238.09c -@{round(0.8815 - $enrichment, 6)}` |
+| Formula helper line | `%@ ...` | `%@ def ratio(e): return e / (1 - e)` |
+| Comment | `%` (Serpent's own) | |
+
+`$` and `@` have no meaning in Serpent input, and helper lines start with Serpent's comment
+character `%`, so a compiled input is plain Serpent. Text in comments is parsed too: do not
+write `${...}` in a comment unless it is a variable. Model: [`.fz/models/Serpent.json`](.fz/models/Serpent.json).
+
+## Outputs
+
+Read from `<input>_res.m`. For a criticality run each output is a number; for a burnup
+(depletion) run it is a list with one value per burnup step. `_err` values are Serpent's
+**relative** statistical errors (1σ). An output absent from the result file (e.g. `burnup`
+without depletion, `betaEff` without the corresponding calculation) is `None`.
+
+| Output | `_res.m` key | Description |
+|---|---|---|
+| `absKeff`, `absKeff_err` | `ABS_KEFF` | absorption estimate of k-eff |
+| `anaKeff`, `anaKeff_err` | `ANA_KEFF` | analog estimate of k-eff |
+| `impKeff`, `impKeff_err` | `IMP_KEFF` | implicit estimate of k-eff |
+| `colKeff`, `colKeff_err` | `COL_KEFF` | collision estimate of k-eff |
+| `absKinf`, `absKinf_err` | `ABS_KINF` | absorption estimate of k-inf |
+| `betaEff`, `betaEff_err` | `BETA_EFF` | total effective delayed neutron fraction |
+| `burnup` | `BURNUP` | burnup (MWd/kgU) |
+| `burnDays` | `BURN_DAYS` | irradiation time (days) |
+| `cpuTime` | `TOT_CPU_TIME` | total CPU time (minutes) |
+
+Other quantities can be added without editing the model, e.g. from the CLI:
+
+```bash
+fzo 'results/*' --model Serpent \
+    --output-cmd sixFfKeff="python://grep(r'^SIX_FF_KEFF\s.*?=\s*\[\s*(\S+)', 'input.inp_res.m')"
+```
+
+## Calculator
+
+`localhost_Serpent` runs [`.fz/calculators/Serpent.sh`](.fz/calculators/Serpent.sh) in each
+case directory. The script is configured by environment variables:
+
+| Variable | Default | Role |
+|---|---|---|
+| `SERPENT_BIN` | `sss2`, then `sss`, then `serpent` in `PATH` | Serpent executable |
+| `SERPENT_OMP` | (Serpent's default) | OpenMP threads, passed as `-omp N` |
+| `SERPENT_ARGS` | | extra command-line options |
+| `SERPENT_INPUT` | first `*.inp`, else first file | main input when the input is a directory with `include`d files |
+
+A case fails (and is retried on another calculator) when Serpent exits with an error or
+writes no `_res.m`. A stale `_res.m` is removed before each run, as Serpent appends to it.
+Keep `max_workers × SERPENT_OMP` within the number of cores.
+
+Remote execution reuses the same script, for instance:
+
+```python
+fz.fzr("input.inp", {"enrichment": [0.03, 0.05]}, model="Serpent",
+       calculators="ssh://user@cluster/bash /path/to/Serpent.sh")
+# or SLURM: "slurm://user@cluster:partition/bash /path/to/Serpent.sh"
+```
+
+## Repository layout
+
+```
+.fz/models/Serpent.json                 model (syntax + output parsing)
+.fz/calculators/Serpent.sh              runner script
+.fz/calculators/localhost_Serpent.json  local calculator alias
+examples/Serpent/input.inp              UOX pin cell, parameterized
+examples/Serpent/input_res.m            result file of a Serpent 2.1.30 run (parsing tests)
+tests/test_plugin.py                    model/parsing tests (pytest)
+tests/test.sh                           end-to-end test: install, fzi, fzc, run, fzo, fzr
+tests/mock/sss2                         fake Serpent for CI
+tests/data/depletion_res.m              synthetic 3-step depletion result
+```
+
+## Tests
+
+```bash
+python -m pytest tests/
+bash tests/test.sh                      # uses tests/mock/sss2
+FZ_SERPENT_MOCK=0 bash tests/test.sh    # uses the real Serpent (sss2 or SERPENT_BIN)
 ```
 
 ## References
 
-- [Serpent Monte Carlo Code](https://serpent.vtt.fi/)
-- [Serpent Documentation](https://serpent.vtt.fi/docs/index.html)
-- [serpentTools Documentation](https://serpent-tools.readthedocs.io/)
-- [serpentTools ResultsReader Example](https://serpent-tools.readthedocs.io/en/master/examples/ResultsReader.html)
-- [Funz/fz Framework](https://github.com/Funz/fz)
+- Serpent documentation: <https://serpent.vtt.fi/docs/>
+- fz documentation: <https://github.com/Funz/fz/tree/main/doc>
 
 ## License
 
-BSD 3-Clause License. See [LICENSE](LICENSE) file.
-
-## Related Projects
-
-- [Funz/fz](https://github.com/Funz/fz) - Main framework
-- [Funz/fz-Model](https://github.com/Funz/fz-Model) - Plugin template
-- [Funz/fz-Scale](https://github.com/Funz/fz-Scale) - SCALE code plugin
+BSD 3-Clause, see [LICENSE](LICENSE).

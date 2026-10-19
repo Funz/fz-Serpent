@@ -1,0 +1,27 @@
+#!/bin/bash
+# Mock Serpent executable for CI (no Serpent licence needed): writes a minimal
+# <input>_res.m whose ABS_KEFF grows with the U-235 weight fraction of the input.
+# Usage: sss2 [-omp N] [options] <input>
+for input; do :; done                      # last argument is the input file
+[ -f "$input" ] || { echo "mock sss2: input '$input' not found" >&2; exit 1; }
+enr=$(awk '$1 == "92235.09c" {print -$2; exit}' "$input")
+keff=$(LC_ALL=C awk -v e="${enr:-0.04}" 'BEGIN {printf "%.5E", 0.9 + 6 * e}')
+echo "mock Serpent 2: $input, enrichment=${enr}, keff=${keff}" | tee "${input}.out"
+cat > "${input}_res.m" <<RES
+
+% Increase counter:
+
+if (exist('idx', 'var'));
+  idx = idx + 1;
+else;
+  idx = 1;
+end;
+
+VERSION                   (idx, [1: 12])  = 'Serpent mock' ;
+TOT_CPU_TIME              (idx, 1)        =  1.00000E-02 ;
+ANA_KEFF                  (idx, [1:   6]) = [  ${keff} 0.00150  ${keff} 0.00150  8.00000E-03 0.02000 ];
+IMP_KEFF                  (idx, [1:   2]) = [  ${keff} 0.00100 ];
+COL_KEFF                  (idx, [1:   2]) = [  ${keff} 0.00120 ];
+ABS_KEFF                  (idx, [1:   2]) = [  ${keff} 0.00100 ];
+ABS_KINF                  (idx, [1:   2]) = [  ${keff} 0.00100 ];
+RES

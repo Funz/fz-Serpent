@@ -1,78 +1,69 @@
 #!/bin/bash
-
-# Serpent calculator script for fz framework
-# This script runs Serpent Monte Carlo calculations
+# Serpent.sh — fz runner for the Serpent 2 Monte Carlo code (https://serpent.vtt.fi/docs/)
 #
-# Usage:
-#   bash .fz/calculators/Serpent.sh <input_file_or_directory>
+# Usage: Serpent.sh <compiled input file(s) | case directory>
 #
-# Prerequisites:
-#   - Serpent must be installed and available in PATH (as 'sss2' or 'serpent')
-#   - serpentTools Python package must be installed (pip install serpentTools)
+# fz calls this script inside a fresh case directory, with the compiled input file(s)
+# as arguments. With several files (main input + `include`d files), the main input is
+# $SERPENT_INPUT if set, else the first *.inp file, else the first argument.
+#
+# Environment:
+#   SERPENT_BIN    Serpent executable (default: sss2, then sss, then serpent in PATH)
+#   SERPENT_OMP    number of OpenMP threads, passed as `-omp N` (default: Serpent's own)
+#   SERPENT_ARGS   extra command-line options, placed before the input file
+#   SERPENT_INPUT  name of the main input file when several files are given
+# Serpent itself reads SERPENT_DATA, SERPENT_ACELIB, SERPENT_DECLIB, SERPENT_NFYLIB.
+#
+# Results: Serpent writes <input>_res.m (parsed by the Serpent model), <input>.out,
+# and optional _det/_dep files. Exit status is non-zero if Serpent fails or if
+# <input>_res.m is missing, so fz marks the case as failed.
 
-# if directory as input, cd into it
 if [ -d "$1" ]; then
-  cd "$1"
-  # Find the first .inp input file
-  input=$(ls *.inp 2>/dev/null | head -n 1)
-  if [ -z "$input" ]; then
-    echo "No .inp input file found in directory. Exiting."
-    exit 1
+  cd "$1" || exit 2
+  set -- *
+fi
+
+input=""
+if [ $# -gt 1 ]; then
+  if [ -n "$SERPENT_INPUT" ]; then
+    input="$SERPENT_INPUT"
+  else
+    for f in "$@"; do
+      case "$f" in *.inp) input="$f"; break ;; esac
+    done
   fi
-  shift
-# if $1 is a file, use it
-elif [ -f "$1" ]; then
-  input="$1"
-  shift
-else
-  echo "Usage: $0 <input_file or input_directory>"
+fi
+input=${input:-$1}
+if [ ! -f "$input" ]; then
+  echo "Usage: $0 <input file or case directory> (input '$input' not found)" >&2
   exit 2
 fi
 
-PID_FILE=$PWD/PID
-echo $$ >> $PID_FILE
-
-# Get the base name of the input file (without extension)
-basename="${input%.*}"
-
-echo "Running Serpent calculation on $input..."
-
-# Check if Serpent is available
-SERPENT_CMD=""
-if command -v sss2 &> /dev/null; then
-    SERPENT_CMD="sss2"
-elif command -v serpent &> /dev/null; then
-    SERPENT_CMD="serpent"
-else
-    echo "Warning: Serpent not found in PATH"
-    echo "Looking for sss2 or serpent commands..."
-    # Try common installation paths
-    if [ -x "/opt/serpent/bin/sss2" ]; then
-        SERPENT_CMD="/opt/serpent/bin/sss2"
-    elif [ -x "$HOME/serpent/bin/sss2" ]; then
-        SERPENT_CMD="$HOME/serpent/bin/sss2"
-    fi
+SERPENT=${SERPENT_BIN:-$(command -v sss2 || command -v sss || command -v serpent)}
+if [ -z "$SERPENT" ] || ! command -v "$SERPENT" >/dev/null; then
+  echo "Serpent executable not found: install it in PATH as sss2, or set SERPENT_BIN" >&2
+  exit 2
 fi
 
-if [ -n "$SERPENT_CMD" ]; then
-    echo "Using Serpent command: $SERPENT_CMD"
-    # Run Serpent
-    $SERPENT_CMD "$input" > serpent.out 2>&1
-    exit_code=$?
-    
-    if [ $exit_code -ne 0 ]; then
-        echo "Serpent exited with error code: $exit_code"
-        cat serpent.out
-    else
-        echo "Serpent calculation completed successfully"
-    fi
-else
-    echo "Serpent executable not found. Cannot run calculation."
-    echo "Please ensure Serpent is installed and available in PATH."
-    exit 1
-fi
+opts=()
+[ -n "$SERPENT_OMP" ] && opts+=(-omp "$SERPENT_OMP")
+# shellcheck disable=SC2206  # SERPENT_ARGS is intentionally word-split
+[ -n "$SERPENT_ARGS" ] && opts+=($SERPENT_ARGS)
 
-# Clean up PID file
-if [ -f "$PID_FILE" ]; then
-    rm -f "$PID_FILE"
+# Serpent appends to an existing _res.m: drop a stale one (retry, re-run)
+rm -f "${input}_res.m"
+echo "Running: $SERPENT ${opts[*]:+${opts[*]} }$input"
+"$SERPENT" "${opts[@]}" "$input" &
+echo $! >> PID            # let fz kill the run on interrupt
+wait $!
+status=$?
+rm -f PID
+
+if [ $status -ne 0 ]; then
+  echo "Serpent exited with status $status" >&2
+  exit $status
+fi
+if [ ! -s "${input}_res.m" ]; then
+  echo "Serpent produced no ${input}_res.m (see ${input}.out)" >&2
+  exit 1
 fi

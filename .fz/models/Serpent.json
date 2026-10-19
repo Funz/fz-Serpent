@@ -5,11 +5,20 @@
     "delim": "{}",
     "commentline": "%",
     "output": {
-        "absKeff": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata['absKeff'].tolist()))\" 2>/dev/null || echo '[]'",
-        "anaKeff": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata['anaKeff'].tolist()))\" 2>/dev/null || echo '[]'",
-        "colKeff": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata['colKeff'].tolist()))\" 2>/dev/null || echo '[]'",
-        "impKeff": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata['impKeff'].tolist()))\" 2>/dev/null || echo '[]'",
-        "burnup": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata.get('burnup',[]).tolist() if hasattr(res.resdata.get('burnup',[]),'tolist') else []))\" 2>/dev/null || echo '[]'",
-        "burnDays": "python3 -c \"import serpentTools,glob,json; f=glob.glob('*_res.m')[0]; res=serpentTools.read(f); print(json.dumps(res.resdata.get('burnDays',[]).tolist() if hasattr(res.resdata.get('burnDays',[]),'tolist') else []))\" 2>/dev/null || echo '[]'"
+        "absKeff": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^ABS_KEFF\\s.*?=\\s*\\[?\\s*(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "absKeff_err": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^ABS_KEFF\\s.*?=\\s*\\[?\\s*\\S+\\s+(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "anaKeff": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^ANA_KEFF\\s.*?=\\s*\\[?\\s*(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "anaKeff_err": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^ANA_KEFF\\s.*?=\\s*\\[?\\s*\\S+\\s+(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "impKeff": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^IMP_KEFF\\s.*?=\\s*\\[?\\s*(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "impKeff_err": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^IMP_KEFF\\s.*?=\\s*\\[?\\s*\\S+\\s+(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "colKeff": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^COL_KEFF\\s.*?=\\s*\\[?\\s*(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "colKeff_err": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^COL_KEFF\\s.*?=\\s*\\[?\\s*\\S+\\s+(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "absKinf": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^ABS_KINF\\s.*?=\\s*\\[?\\s*(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "absKinf_err": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^ABS_KINF\\s.*?=\\s*\\[?\\s*\\S+\\s+(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "betaEff": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^BETA_EFF\\s.*?=\\s*\\[?\\s*(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "betaEff_err": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^BETA_EFF\\s.*?=\\s*\\[?\\s*\\S+\\s+(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "burnup": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^BURNUP\\s.*?=\\s*\\[?\\s*(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "burnDays": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^BURN_DAYS\\s.*?=\\s*\\[?\\s*(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))",
+        "cpuTime": "python://(lambda v: v[0] if len(v) == 1 else (v or None))(grep(r'^TOT_CPU_TIME\\s.*?=\\s*\\[?\\s*(\\S+)', sorted(base_dir.glob('*_res.m'))[0], all=True))"
     }
 }

@@ -3,7 +3,8 @@
 % ============================================================
 %
 % This is a simple 2D fuel pin cell model for UOX (Uranium Oxide) fuel
-% Variables are defined using ${variable_name} syntax for fz framework
+% fz syntax: variables are written with a dollar sign and braces, with an optional
+% default after a tilde; formulas (Python) with an at sign and braces.
 %
 % Reference: Based on Serpent Tutorial examples
 % ============================================================
@@ -19,11 +20,11 @@ set title "UOX Fuel Pin Cell - fz Parametric Study"
 % ============================================================
 
 % --- UOX fuel material ---
-% Enrichment is parameterized for sensitivity studies
-% Default enrichment ~4% U-235
+% U-235 weight fraction is parameterized; U-238 completes the heavy metal so that
+% the mass fractions sum to 1 (O-16 fixed at 0.1185)
 mat fuel -10.5 tmp 900
-92235.09c -${enrichment}
-92238.09c -${u238_fraction}
+92235.09c -${enrichment~0.04}
+92238.09c -@{round(0.8815 - $enrichment, 6)}
 8016.09c  -0.1185
 
 % --- Zircaloy cladding ---
@@ -35,7 +36,7 @@ mat clad -6.56 tmp 600
 40096.06c -0.0280
 
 % --- Water moderator/coolant ---
-mat water -${water_density} moder lwtr 1001 tmp ${water_temp}
+mat water -${water_density~0.72} moder lwtr 1001 tmp ${water_temp~600}
 1001.06c  2
 8016.06c  1
 
@@ -48,16 +49,16 @@ therm lwtr lwe7.00t
 
 % --- Surfaces ---
 % Fuel pellet outer radius
-surf 1 cyl 0.0 0.0 ${fuel_radius}
+surf 1 cyl 0.0 0.0 ${fuel_radius~0.41}
 
 % Cladding inner radius (gap is neglected)
-surf 2 cyl 0.0 0.0 ${clad_inner_radius}
+surf 2 cyl 0.0 0.0 ${clad_inner_radius~0.42}
 
 % Cladding outer radius
-surf 3 cyl 0.0 0.0 ${clad_outer_radius}
+surf 3 cyl 0.0 0.0 ${clad_outer_radius~0.475}
 
 % Pin cell boundary (square)
-surf 4 sqc 0.0 0.0 ${pitch_half}
+surf 4 sqc 0.0 0.0 ${pitch_half~0.63}
 
 % --- Cells ---
 % Fuel region
@@ -84,10 +85,10 @@ set bc 2
 
 % --- Neutron population and criticality cycles ---
 % pop <neutrons_per_cycle> <active_cycles> <inactive_cycles>
-set pop ${neutrons_per_cycle} ${active_cycles} ${inactive_cycles}
+set pop ${neutrons_per_cycle~50000} ${active_cycles~200} ${inactive_cycles~20}
 
 % --- Seed for random number generator (for reproducibility) ---
-set seed ${seed}
+set seed ${seed~12345}
 
 % --- Output options ---
 set pcc 0

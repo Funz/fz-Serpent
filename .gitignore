@@ -39,3 +39,4 @@ Thumbs.db
 
 # Serpent execution files
 serpent.out
+*.seed
