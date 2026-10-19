@@ -33,8 +33,9 @@ fzr input.inp --model Serpent -v '{"enrichment": [0.03, 0.04, 0.05]}' --format t
   extraction, no other Python package is needed (serpentTools is **not** required).
 - Serpent 2 (licensed by VTT through the NEA Data Bank / RSICC) with its nuclear data:
   either declared in the input (`set acelib`, `set declib`, `set nfylib`) or through the
-  environment variables Serpent reads itself (`SERPENT_DATA`, `SERPENT_ACELIB`,
-  `SERPENT_DECLIB`, `SERPENT_NFYLIB`).
+  environment variables Serpent reads itself: `SERPENT_DATA` (search directory, so that
+  data files can be named without path), `SERPENT_ACELIB`, and since Serpent 2.2.0
+  `SERPENT_DECLIB`, `SERPENT_NFYLIB`; the `set` cards of the input override them.
 
 ## Input syntax
 
@@ -64,8 +65,8 @@ without depletion, `betaEff` without the corresponding calculation) is `None`.
 | `colKeff`, `colKeff_err` | `COL_KEFF` | collision estimate of k-eff |
 | `absKinf`, `absKinf_err` | `ABS_KINF` | absorption estimate of k-inf |
 | `betaEff`, `betaEff_err` | `BETA_EFF` | total effective delayed neutron fraction |
-| `burnup` | `BURNUP` | burnup (MWd/kgU) |
-| `burnDays` | `BURN_DAYS` | irradiation time (days) |
+| `burnup` | `BURNUP` | burnup at the step (MWd/kgU), first of the two values |
+| `burnDays` | `BURN_DAYS` | cumulative irradiation time (days) |
 | `cpuTime` | `TOT_CPU_TIME` | total CPU time (minutes) |
 
 Other quantities can be added without editing the model, e.g. from the CLI:
@@ -84,7 +85,7 @@ case directory. The script is configured by environment variables:
 |---|---|---|
 | `SERPENT_BIN` | `sss2`, then `sss`, then `serpent` in `PATH` | Serpent executable |
 | `SERPENT_OMP` | (Serpent's default) | OpenMP threads, passed as `-omp N` |
-| `SERPENT_ARGS` | | extra command-line options |
+| `SERPENT_ARGS` | | extra command-line options (e.g. `-nofatal`) |
 | `SERPENT_INPUT` | first `*.inp`, else first file | main input when the input is a directory with `include`d files |
 
 A case fails (and is retried on another calculator) when Serpent exits with an error or
@@ -123,7 +124,11 @@ FZ_SERPENT_MOCK=0 bash tests/test.sh    # uses the real Serpent (sss2 or SERPENT
 
 ## References
 
-- Serpent documentation: <https://serpent.vtt.fi/docs/>
+- Serpent documentation: <https://serpent.vtt.fi/docs/> — in particular
+  [Running Serpent](https://serpent.vtt.fi/docs/user_guide/running_overview.html),
+  [Data libraries](https://serpent.vtt.fi/docs/user_guide/nuclear_data.html),
+  [Standard output](https://serpent.vtt.fi/docs/user_guide/standard_output.html),
+  [Burnup output](https://serpent.vtt.fi/docs/user_guide/burnup_output.html)
 - fz documentation: <https://github.com/Funz/fz/tree/main/doc>
 
 ## License

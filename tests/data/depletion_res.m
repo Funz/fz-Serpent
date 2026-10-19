@@ -1,5 +1,7 @@
 % Synthetic 3-step depletion _res.m (Serpent 2 layout, made-up values) used to
 % test that burnup-dependent outputs come back as one value per burnup step.
+% BURN_DAYS is a scalar in older Serpent 2 versions and [cumulative step-wise]
+% in recent ones: both layouts are present (steps 0-1, step 2).
 
 % Increase counter:
 
@@ -51,7 +53,7 @@ VERSION                   (idx, [1: 14])  = 'Serpent 2.1.32' ;
 TOT_CPU_TIME              (idx, 1)        =  1.00002-01 ;
 BURN_STEP                 (idx, 1)        = 2 ;
 BURNUP                    (idx, [1:   2]) = [  1.00000E+01 1.00000E+01 ];
-BURN_DAYS                 (idx, 1)        =  2.50000E+02 ;
+BURN_DAYS                 (idx, [1:   2]) = [  2.50000E+02  2.25000E+02 ];
 ANA_KEFF                  (idx, [1:   6]) = [  1.19876E+00 0.00085  1.19876E+00 0.00085  8.00000E-03 0.02000 ];
 IMP_KEFF                  (idx, [1:   2]) = [  1.19876E+00 0.00085 ];
 COL_KEFF                  (idx, [1:   2]) = [  1.19876E+00 0.00085 ];

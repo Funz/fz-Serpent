@@ -12,7 +12,8 @@
 #   SERPENT_OMP    number of OpenMP threads, passed as `-omp N` (default: Serpent's own)
 #   SERPENT_ARGS   extra command-line options, placed before the input file
 #   SERPENT_INPUT  name of the main input file when several files are given
-# Serpent itself reads SERPENT_DATA, SERPENT_ACELIB, SERPENT_DECLIB, SERPENT_NFYLIB.
+# Serpent itself reads SERPENT_DATA, SERPENT_ACELIB and (>= 2.2.0) SERPENT_DECLIB,
+# SERPENT_NFYLIB; see https://serpent.vtt.fi/docs/user_guide/running_overview.html
 #
 # Results: Serpent writes <input>_res.m (parsed by the Serpent model), <input>.out,
 # and optional _det/_dep files. Exit status is non-zero if Serpent fails or if
