@@ -26,8 +26,9 @@ jobs:
     - name: Install dependencies
       run: |
         pip install git+https://github.com/Funz/fz.git
-        pip install serpentTools
-     
+        # serpentTools 0.11.0 fails with numpy >= 2.3 (only used by the serpentTools parsing test)
+        pip install serpentTools "numpy<2.3"
+
     - name: Validate JSON files
       run: |
         echo "Validating model files..."

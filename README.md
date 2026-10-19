@@ -7,7 +7,7 @@ A [Funz](https://github.com/Funz/fz) plugin for running parametric studies with 
 This plugin enables you to:
 - Define input parameters in Serpent input files using `${variable}` syntax
 - Run parametric sweeps and sensitivity analyses
-- Automatically extract key results (k-effective, etc.) using [serpentTools](https://serpent-tools.readthedocs.io/)
+- Automatically extract key results (k-effective, etc.) from the `*_res.m` result files
 
 ## Features
 
@@ -18,7 +18,7 @@ This plugin enables you to:
 
 ### Supported Output Variables
 
-The plugin automatically extracts these output variables from Serpent result files (`*_res.m`). All outputs are formatted as JSON arrays/matrices for easy parsing.
+The plugin automatically extracts these output variables from Serpent result files (`*_res.m`). All outputs are formatted as JSON arrays/matrices for easy parsing: a list of values for a single result block (criticality run), one list per burnup step for depletion runs, `[]` when the variable is absent. The output commands use only the Python standard library (any `python3`), with the same values and shapes as `serpentTools` `resdata`.
 
 | Variable | Description |
 |----------|-------------|
@@ -33,7 +33,8 @@ The plugin automatically extracts these output variables from Serpent result fil
 
 - [Funz/fz](https://github.com/Funz/fz) framework
 - [Serpent 2](https://serpent.vtt.fi/) Monte Carlo code (for actual calculations)
-- [serpentTools](https://serpent-tools.readthedocs.io/) Python package (for result parsing)
+- `python3` in PATH (standard library only) for the output commands
+- optional: [serpentTools](https://serpent-tools.readthedocs.io/) for your own post-processing (see [Result Parsing](#result-parsing))
 
 ## Installation
 
@@ -42,12 +43,7 @@ The plugin automatically extracts these output variables from Serpent result fil
 pip install git+https://github.com/Funz/fz.git
 ```
 
-2. Install serpentTools for result parsing:
-```bash
-pip install serpentTools
-```
-
-3. Clone this repository:
+2. Clone this repository:
 ```bash
 git clone https://github.com/Funz/fz-Serpent.git
 cd fz-Serpent
@@ -82,7 +78,8 @@ results = fz.fzr(
     results_dir="my_results"
 )
 
-print(results[['enrichment', 'absKeff', 'absKeff_err']])
+# absKeff = [k, relative standard deviation]
+print(results[['enrichment', 'absKeff', 'status', 'error']])
 ```
 
 ### Directory Structure
@@ -136,7 +133,10 @@ set seed ${seed}
 
 ## Result Parsing
 
-This plugin uses [serpentTools](https://serpent-tools.readthedocs.io/) to parse Serpent output files. The `*_res.m` files contain all criticality results.
+The `*_res.m` files contain all criticality results. The plugin reads them without any dependency; for further
+post-processing, [serpentTools](https://serpent-tools.readthedocs.io/) can be used. Note: serpentTools 0.11.0 fails with
+numpy >= 2.3 (`TypeError: only 0-dimensional arrays can be converted to Python scalars`); install it with
+`pip install serpentTools "numpy<2.3"`.
 
 Example of manually reading results:
 
@@ -153,15 +153,39 @@ keff_err = res.resdata['absKeff'][0, 1]  # relative error
 print(f"k-eff = {keff:.5f} ± {keff * keff_err:.5f}")
 ```
 
-## Configuring Serpent Path
+## Configuring Serpent
 
-The calculator script looks for Serpent in the following locations:
-1. `sss2` command in PATH
-2. `serpent` command in PATH
-3. `/opt/serpent/bin/sss2`
-4. `$HOME/serpent/bin/sss2`
+The calculator script (`.fz/calculators/Serpent.sh`) is configured by environment variables:
 
-To use a custom Serpent installation, modify `.fz/calculators/Serpent.sh`.
+| Variable | Meaning |
+|----------|---------|
+| `SERPENT_EXE` | Serpent executable. Default: `sss2` or `serpent` in PATH, then `/opt/serpent/bin/sss2`, `$HOME/serpent/bin/sss2` |
+| `SERPENT_OMP` | number of OpenMP threads, passed as `-omp N` (default 1) |
+| `SERPENT_DATA` | directory of the cross section data (read by Serpent: relative `set acelib` / `set declib` names) |
+| `SERPENT_ACELIB` | default cross section directory file, used when the input has no `set acelib` (read by Serpent) |
+
+```bash
+export SERPENT_EXE=/path/to/sss2 SERPENT_OMP=4
+export SERPENT_DATA=/path/to/xsdata SERPENT_ACELIB=sss_endfb7u.xsdata
+```
+
+The example input has no `set acelib` (it relies on `SERPENT_ACELIB`) and uses the thermal scattering library
+`lwe7.00t` (`therm lwtr lwe7.00t`): adapt this name to the S(α,β) data of your cross section directory file (for
+example `h-h2o.15t` at 600 K with ENDF/B-VIII.0).
+
+### Error reporting
+
+A calculation is reported as failed (`status = failed`) when Serpent exits with a non-zero code, when its output
+contains an `Input error`, `Fatal error`, `Tracking error` or `Geometry error:` message, or when no `*_res.m` file was
+written. The Serpent message is written to stderr, so it appears in the `error` column of the fz results, e.g.:
+
+```
+Command failed with exit code 255. stderr: Serpent failed (exit code 255): Input error in parameter "therm" on line 43 in file "input.inp":
+S(a,b) data lwe7.00t not found in libraries
+```
+
+Note: with group constant generation on (Serpent default), the number of active cycles must be a multiple of 20;
+add `set gcu -1` to the input if group constants are not needed.
 
 ## Remote Execution
 
@@ -180,10 +204,10 @@ results = fz.fzr(
 ## Running Tests
 
 ```bash
-# Install test dependencies
-pip install serpentTools
+# Optional test dependencies (the serpentTools test is skipped without it)
+pip install serpentTools "numpy<2.3"
 
-# Run tests
+# Run tests (model files, output commands, calculator error handling with fake executables, fz integration)
 python tests/test_plugin.py
 ```
 
